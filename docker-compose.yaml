@@ -1,5 +1,4 @@
 services:
-  # 1. The Load Balancer that intercepts Go requests and distributes them
   proxy-balancer:
     image: haproxy:alpine
     ports:
@@ -10,11 +9,11 @@ services:
       - tor-node
     restart: always
 
-  # 2. The Tor node service (We will scale this to multiple containers!)
   tor-node:
     image: dockage/tor-privoxy:latest
-    # We do not expose ports to the host machine; HAProxy handles communication internally
     restart: always
+    volumes:
+      - ./rotate.conf:/etc/torrc.d/rotate.conf:ro
 
  
   api:

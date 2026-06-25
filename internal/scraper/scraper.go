@@ -33,12 +33,14 @@ func NewDefaultScraper() *DefaultScraper {
 }
 
 func (ds *DefaultScraper) Scrape(ctx context.Context, targetURL string, proxyURL string) (*ScrapeResult, string, error) {
+	var outboundIP string = "Circuit-Establishing"
+
 	c := colly.NewCollector(
 		colly.UserAgent(ds.userAgent),
 	)
 
 	t := &http.Transport{
-		DisableKeepAlives: true, // Forces HAProxy round-robin rotation per request
+		DisableKeepAlives: true, // Guarantees socket destruction so HAProxy rotates next call
 	}
 
 	if proxyURL != "" {
@@ -52,6 +54,23 @@ func (ds *DefaultScraper) Scrape(ctx context.Context, targetURL string, proxyURL
 	c.WithTransport(t)
 	c.SetRequestTimeout(25 * time.Second)
 
+	// 🌟 THE LIVE REVEAL: Clone the current active transport state to fetch the IP inline.
+	// This ensures it uses the exact same gateway proxy lane assignment right now!
+	ipChecker := c.Clone()
+	ipChecker.SetRequestTimeout(10 * time.Second)
+
+	ipChecker.OnResponse(func(r *colly.Response) {
+		fetchedIP := strings.TrimSpace(string(r.Body))
+		// Clean check to ensure it's a raw IP string, not HTML error formatting
+		if fetchedIP != "" && !strings.Contains(fetchedIP, "<") && len(fetchedIP) <= 45 {
+			outboundIP = fetchedIP
+		}
+	})
+
+	// Run text-only unencrypted lookup so it finishes instantly without slow TLS renegotiation
+	_ = ipChecker.Visit("http://api.ipify.org")
+
+	// Main target processing execution block
 	var result ScrapeResult
 	result.URL = targetURL
 	result.ScrapedAt = time.Now()
@@ -84,17 +103,17 @@ func (ds *DefaultScraper) Scrape(ctx context.Context, targetURL string, proxyURL
 
 	err := c.Visit(targetURL)
 	if err != nil {
-		return nil, "Tor-Circuit", err
+		return nil, outboundIP, err
 	}
 
 	if scrapeErr != nil {
-		return nil, "Tor-Circuit", scrapeErr
+		return nil, outboundIP, scrapeErr
 	}
 
 	if result.Title == "" {
 		result.Title = "Unknown Domain Document"
 	}
 
-	// Returns a clean placeholder for the terminal status trace
-	return &result, "Rotated-Tor-IP", nil
+	// Returns the actual fetched IP address live!
+	return &result, outboundIP, nil
 }
