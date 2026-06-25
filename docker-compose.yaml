@@ -1,0 +1,31 @@
+services:
+  # 1. The Load Balancer that intercepts Go requests and distributes them
+  proxy-balancer:
+    image: haproxy:alpine
+    ports:
+      - "8888:8888"
+    volumes:
+      - ./haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+    depends_on:
+      - tor-node
+    restart: always
+
+  # 2. The Tor node service (We will scale this to multiple containers!)
+  tor-node:
+    image: dockage/tor-privoxy:latest
+    # We do not expose ports to the host machine; HAProxy handles communication internally
+    restart: always
+
+ 
+  api:
+    build: .
+    ports:
+      - "8080:8080"
+    depends_on:
+      - proxy-balancer
+    environment:
+      - SERVER_PORT=8080
+      - PROXY_ENABLED=true
+    volumes:
+      - ./configs:/root/configs
+      - ./data:/root/data

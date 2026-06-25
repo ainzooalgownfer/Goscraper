@@ -1,0 +1,94 @@
+basePath: /
+definitions:
+  api.ScrapeRequest:
+    properties:
+      url:
+        type: string
+    required:
+    - url
+    type: object
+  storage.Job:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: string
+      status:
+        $ref: '#/definitions/storage.JobStatus'
+      url:
+        type: string
+    type: object
+  storage.JobStatus:
+    enum:
+    - pending
+    - processing
+    - completed
+    - failed
+    type: string
+    x-enum-varnames:
+    - StatusPending
+    - StatusProcessing
+    - StatusCompleted
+    - StatusFailed
+host: localhost:8080
+info:
+  contact: {}
+  description: A production-inspired asynchronous web scraping service written in
+    Go.
+  title: GoScrape API
+  version: "1.0"
+paths:
+  /jobs/{id}:
+    get:
+      description: Retrieves current operational status and meta metrics for an existing
+        job item
+      parameters:
+      - description: Job Unique ID ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Success
+          schema:
+            $ref: '#/definitions/storage.Job'
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Get scraping job status
+      tags:
+      - jobs
+  /scrape:
+    post:
+      consumes:
+      - application/json
+      description: Accepts a URL target and pushes a new job to the async worker pool
+      parameters:
+      - description: Target URL configuration
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/api.ScrapeRequest'
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Submit a scraping job
+      tags:
+      - jobs
+swagger: "2.0"

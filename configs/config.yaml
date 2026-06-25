@@ -1,0 +1,10 @@
+# configs/config.yaml
+server:
+  port: "8080"
+
+scraper:
+  delay: "2s"
+  parallelism: 4
+
+proxy:
+  enabled: true
