@@ -10,7 +10,6 @@ NC='\033[0m'
 API_URL="http://localhost:8080"
 declare -a JOBS=()
 
-# mix of easy, medium, and strict sites
 TARGETS=(
     # IP verification — confirms which exit node was used
     "http://ip-api.com/json"
@@ -78,6 +77,7 @@ COMPLETED=0
 FAILED=0
 BLOCKED=0
 declare -A IP_COUNT
+declare -A IP_GEO
 
 printf "%-10s %-12s %-20s %s\n" "JOB ID" "STATUS" "EXIT IP" "URL"
 echo "--------------------------------------------------------------------------------"
@@ -96,11 +96,24 @@ for entry in "${JOBS[@]}"; do
 
     if [ "$STATUS" = "completed" ]; then
         COMPLETED=$((COMPLETED+1))
-        [ -n "$IP" ] && IP_COUNT[$IP]=$((${IP_COUNT[$IP]:-0}+1))
+
+        if [ -n "$IP" ]; then
+            IP_COUNT[$IP]=$((${IP_COUNT[$IP]:-0}+1))
+
+            # fetch geo only once per unique IP
+            if [ -z "${IP_GEO[$IP]}" ]; then
+                GEO=$(curl -s --max-time 5 "http://ip-api.com/json/$IP")
+                CITY=$(echo "$GEO"    | grep -o '"city":"[^"]*"'    | cut -d'"' -f4)
+                COUNTRY=$(echo "$GEO" | grep -o '"country":"[^"]*"' | cut -d'"' -f4)
+                ISP=$(echo "$GEO"     | grep -o '"isp":"[^"]*"'     | cut -d'"' -f4)
+                IP_GEO[$IP]="$CITY, $COUNTRY | $ISP"
+            fi
+        fi
+
         DISPLAY_IP="${IP:-n/a}"
         printf "${GREEN}%-10s %-12s${NC} %-20s %s\n" "$SHORT_ID" "completed" "$DISPLAY_IP" "$SHORT_URL"
+
     elif [ "$STATUS" = "failed" ]; then
-        # check if it was a block or a real failure
         if echo "$TITLE" | grep -qi "403\|forbidden\|blocked\|captcha"; then
             BLOCKED=$((BLOCKED+1))
             printf "${YELLOW}%-10s %-12s${NC} %-20s %s\n" "$SHORT_ID" "BLOCKED" "-" "$SHORT_URL"
@@ -126,6 +139,7 @@ echo -e "  Failed               : ${RED}$FAILED${NC}"
 echo -e "\n  Exit IP distribution:"
 for ip in "${!IP_COUNT[@]}"; do
     echo -e "    ${CYAN}$ip${NC} → ${IP_COUNT[$ip]} job(s)"
+    echo -e "    ${PURPLE}${IP_GEO[$ip]}${NC}"
 done
 
 UNIQUE=${#IP_COUNT[@]}

@@ -49,7 +49,10 @@ func (w *Worker) process(job *storage.DBJob) {
 		return
 	}
 
-	result, outboundIP, err := w.scraper.Scrape(context.Background(), job.URL, px)
+	
+	strategy := ResolveStrategy(job.Strategy, job.ParseSelectors())
+
+	result, outboundIP, err := w.scraper.Scrape(context.Background(), job.URL, px, strategy)
 	log.Printf("[Worker %d] Target sees IP: %-15s | Scraping: %s", w.id, outboundIP, job.URL)
 
 	if err != nil {

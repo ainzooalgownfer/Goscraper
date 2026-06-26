@@ -4,6 +4,7 @@ CYAN='\033[0;36m'
 GREEN='\033[0;32m'
 RED='\033[0;31m'
 YELLOW='\033[1;33m'
+PURPLE='\033[0;35m'
 NC='\033[0m'
 
 NUM_NODES=${1:-5}
@@ -18,26 +19,33 @@ UNIQUE_IPS=()
 for i in $(seq 1 $NUM_NODES); do
   CONTAINER="scraper-tor-node-$i-1"
 
-  IP=$(docker exec \
+  RAW=$(docker exec \
     -e http_proxy=http://127.0.0.1:8118 \
     "$CONTAINER" \
-    wget -q -T 15 -O - http://ip-api.com/json 2>/dev/null \
-    | grep -o '"query":"[^"]*"' | cut -d'"' -f4)
+    wget -q -T 15 -O - http://ip-api.com/json 2>/dev/null)
+
+  IP=$(echo "$RAW"     | grep -o '"query":"[^"]*"'       | cut -d'"' -f4)
+  COUNTRY=$(echo "$RAW" | grep -o '"country":"[^"]*"'    | cut -d'"' -f4)
+  CITY=$(echo "$RAW"    | grep -o '"city":"[^"]*"'       | cut -d'"' -f4)
+  ISP=$(echo "$RAW"     | grep -o '"isp":"[^"]*"'        | cut -d'"' -f4)
 
   if [ -z "$IP" ]; then
-    echo -e "  tor-node-$i ($CONTAINER): ${RED}unreachable${NC}"
+    echo -e "  tor-node-$i: ${RED}unreachable${NC}"
   else
     SEEN_IPS+=("$IP")
     if ! printf '%s\n' "${UNIQUE_IPS[@]}" | grep -q "^$IP$"; then
       UNIQUE_IPS+=("$IP")
       echo -e "  tor-node-$i: ${GREEN}$IP${NC}"
+      echo -e "            ${PURPLE}$CITY, $COUNTRY${NC}"
+      echo -e "            ${CYAN}$ISP${NC}"
     else
       echo -e "  tor-node-$i: ${YELLOW}$IP (duplicate)${NC}"
+      echo -e "            ${PURPLE}$CITY, $COUNTRY${NC}"
     fi
+    echo ""
   fi
 done
 
-echo ""
 echo -e "  Containers checked : ${#SEEN_IPS[@]}"
 echo -e "  Unique exit IPs    : ${CYAN}${#UNIQUE_IPS[@]}${NC}"
 echo ""

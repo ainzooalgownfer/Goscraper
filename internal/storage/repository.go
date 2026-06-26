@@ -2,6 +2,7 @@
 package storage
 
 import (
+	"encoding/json"
 	"time"
 )
 
@@ -11,6 +12,8 @@ type DBJob struct {
 	URL         string    `gorm:"type:text;not null" json:"url"`
 	Status      string    `gorm:"type:varchar(20);default:'pending'" json:"status"`
 	ResultTitle string    `gorm:"type:text" json:"result_title,omitempty"`
+	Strategy    string    `gorm:"type:varchar(50);default:'title'" json:"strategy"`
+	Selectors   string    `gorm:"type:text" json:"selectors,omitempty"` 
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
 }
@@ -20,4 +23,26 @@ type JobRepository interface {
 	Create(job *DBJob) error
 	Get(id string) (*DBJob, error)
 	UpdateStatus(id string, status string, title string) error
+}
+
+func (j *DBJob) ParseSelectors() map[string]string {
+	if j.Selectors == "" {
+		return nil
+	}
+	var selectors map[string]string
+	if err := json.Unmarshal([]byte(j.Selectors), &selectors); err != nil {
+		return nil
+	}
+	return selectors
+}
+
+func EncodeSelectors(selectors map[string]string) string {
+	if len(selectors) == 0 {
+		return ""
+	}
+	b, err := json.Marshal(selectors)
+	if err != nil {
+		return ""
+	}
+	return string(b)
 }

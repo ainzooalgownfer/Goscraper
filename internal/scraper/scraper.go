@@ -19,7 +19,7 @@ type ScrapeResult struct {
 }
 
 type Scraper interface {
-	Scrape(ctx context.Context, url string, proxyURL string) (*ScrapeResult, string, error)
+	Scrape(ctx context.Context, url string, proxyURL string, strategy ScrapeStrategy) (*ScrapeResult, string, error)
 }
 
 type DefaultScraper struct {
@@ -32,7 +32,7 @@ func NewDefaultScraper() *DefaultScraper {
 	}
 }
 
-func (ds *DefaultScraper) Scrape(ctx context.Context, targetURL string, proxyURL string) (*ScrapeResult, string, error) {
+func (ds *DefaultScraper) Scrape(ctx context.Context, targetURL string, proxyURL string, strategy ScrapeStrategy) (*ScrapeResult, string, error) {
 	var outboundIP string = "Circuit-Establishing"
 
 	c := colly.NewCollector(
@@ -40,7 +40,7 @@ func (ds *DefaultScraper) Scrape(ctx context.Context, targetURL string, proxyURL
 	)
 
 	t := &http.Transport{
-		DisableKeepAlives: true, // Guarantees socket destruction so HAProxy rotates next call
+		DisableKeepAlives: true,
 	}
 
 	if proxyURL != "" {
@@ -54,23 +54,17 @@ func (ds *DefaultScraper) Scrape(ctx context.Context, targetURL string, proxyURL
 	c.WithTransport(t)
 	c.SetRequestTimeout(25 * time.Second)
 
-	// 🌟 THE LIVE REVEAL: Clone the current active transport state to fetch the IP inline.
-	// This ensures it uses the exact same gateway proxy lane assignment right now!
+	// IP detection
 	ipChecker := c.Clone()
 	ipChecker.SetRequestTimeout(10 * time.Second)
-
 	ipChecker.OnResponse(func(r *colly.Response) {
 		fetchedIP := strings.TrimSpace(string(r.Body))
-		// Clean check to ensure it's a raw IP string, not HTML error formatting
 		if fetchedIP != "" && !strings.Contains(fetchedIP, "<") && len(fetchedIP) <= 45 {
 			outboundIP = fetchedIP
 		}
 	})
-
-	// Run text-only unencrypted lookup so it finishes instantly without slow TLS renegotiation
 	_ = ipChecker.Visit("http://api.ipify.org")
 
-	// Main target processing execution block
 	var result ScrapeResult
 	result.URL = targetURL
 	result.ScrapedAt = time.Now()
@@ -82,18 +76,17 @@ func (ds *DefaultScraper) Scrape(ctx context.Context, targetURL string, proxyURL
 		Parallelism: 2,
 	})
 
-	c.OnHTML("title", func(e *colly.HTMLElement) {
-		result.Title = strings.TrimSpace(e.Text)
-	})
+	// inject strategy 
+	if strategy != nil {
+		strategy(c, &result)
+	} else {
+		TitleStrategy()(c, &result)
+	}
 
 	c.OnResponse(func(r *colly.Response) {
 		if result.Title == "" {
 			result.Title = "Raw Document Snippet"
 		}
-	})
-
-	c.OnHTML("meta[name=description]", func(e *colly.HTMLElement) {
-		result.Data = e.Attr("content")
 	})
 
 	var scrapeErr error
@@ -114,6 +107,5 @@ func (ds *DefaultScraper) Scrape(ctx context.Context, targetURL string, proxyURL
 		result.Title = "Unknown Domain Document"
 	}
 
-	// Returns the actual fetched IP address live!
 	return &result, outboundIP, nil
 }

@@ -17,43 +17,7 @@ const docTemplate = `{
     "paths": {
         "/jobs/{id}": {
             "get": {
-                "description": "Retrieves current operational status and meta metrics for an existing job item",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "jobs"
-                ],
-                "summary": "Get scraping job status",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Job Unique ID ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Success",
-                        "schema": {
-                            "$ref": "#/definitions/storage.Job"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    }
-                }
-            }
-        },
-        "/scrape": {
-            "post": {
-                "description": "Accepts a URL target and pushes a new job to the async worker pool",
+                "description": "Retrieves the details of a specific scrape job.",
                 "consumes": [
                     "application/json"
                 ],
@@ -63,10 +27,63 @@ const docTemplate = `{
                 "tags": [
                     "jobs"
                 ],
-                "summary": "Submit a scraping job",
+                "summary": "Get a scrape job",
                 "parameters": [
                     {
-                        "description": "Target URL configuration",
+                        "type": "string",
+                        "description": "Job ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "Accepted",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/scrape": {
+            "post": {
+                "description": "Submits a URL to the worker pool for scraping. Supports multiple extraction strategies.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "jobs"
+                ],
+                "summary": "Submit a scrape job",
+                "parameters": [
+                    {
+                        "description": "Scrape request",
                         "name": "request",
                         "in": "body",
                         "required": true,
@@ -80,14 +97,27 @@ const docTemplate = `{
                         "description": "Accepted",
                         "schema": {
                             "type": "object",
-                            "additionalProperties": true
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
                             "type": "object",
-                            "additionalProperties": true
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     }
                 }
@@ -96,61 +126,41 @@ const docTemplate = `{
     },
     "definitions": {
         "api.ScrapeRequest": {
+            "description": "Scrape request body",
             "type": "object",
             "required": [
                 "url"
             ],
             "properties": {
-                "url": {
-                    "type": "string"
-                }
-            }
-        },
-        "storage.Job": {
-            "type": "object",
-            "properties": {
-                "created_at": {
-                    "type": "string"
+                "selectors": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
                 },
-                "id": {
+                "strategy": {
                     "type": "string"
-                },
-                "status": {
-                    "$ref": "#/definitions/storage.JobStatus"
                 },
                 "url": {
                     "type": "string"
                 }
             }
-        },
-        "storage.JobStatus": {
-            "type": "string",
-            "enum": [
-                "pending",
-                "processing",
-                "completed",
-                "failed"
-            ],
-            "x-enum-varnames": [
-                "StatusPending",
-                "StatusProcessing",
-                "StatusCompleted",
-                "StatusFailed"
-            ]
         }
     }
 }`
 
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
-	Version:          "1.0",
-	Host:             "localhost:8080",
-	BasePath:         "/",
+	Version:          "",
+	Host:             "",
+	BasePath:         "",
 	Schemes:          []string{},
-	Title:            "GoScrape API",
-	Description:      "A production-inspired asynchronous web scraping service written in Go.",
+	Title:            "",
+	Description:      "",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
+	LeftDelim:        "{{",
+	RightDelim:       "}}",
 }
 
 func init() {

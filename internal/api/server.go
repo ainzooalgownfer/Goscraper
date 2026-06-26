@@ -1,4 +1,3 @@
-// internal/api/server.go
 package api
 
 import (
@@ -8,8 +7,8 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/swaggo/files"
-	"github.com/swaggo/gin-swagger"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 	"scraper/internal/config"
 	"scraper/internal/scraper"
 	"scraper/internal/storage"
@@ -22,8 +21,13 @@ type Server struct {
 	pool   *scraper.WorkerPool
 }
 
+
+// ScrapeRequest represents the scrape job submission payload
+// @Description Scrape request body
 type ScrapeRequest struct {
-	URL string `json:"url" binding:"required,url"`
+	URL       string            `json:"url"       binding:"required,url"`
+	Strategy  string            `json:"strategy"`
+	Selectors map[string]string `json:"selectors,omitempty"`
 }
 
 func NewServer(cfg *config.Config, pool *scraper.WorkerPool, repo storage.JobRepository) *Server {
@@ -62,10 +66,33 @@ func (s *Server) handleHealth(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"status": "healthy"})
 }
 
+
+// handleScrape godoc
+// @Summary      Submit a scrape job
+// @Description  Submits a URL to the worker pool for scraping. Supports multiple extraction strategies.
+// @Tags         jobs
+// @Accept       json
+// @Produce      json
+// @Param        request body ScrapeRequest true "Scrape request"
+// @Success      202  {object}  map[string]string
+// @Failure      400  {object}  map[string]string
+// @Failure      500  {object}  map[string]string
+// @Router       /scrape [post]
 func (s *Server) handleScrape(c *gin.Context) {
 	var req ScrapeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Valid URL parameter is required"})
+		return
+	}
+
+	// default strategy if not provided
+	if req.Strategy == "" {
+		req.Strategy = "title"
+	}
+
+	// custom strategy requires selectors
+	if req.Strategy == "custom" && len(req.Selectors) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "custom strategy requires at least one selector"})
 		return
 	}
 
@@ -74,6 +101,8 @@ func (s *Server) handleScrape(c *gin.Context) {
 		ID:        jobID,
 		URL:       req.URL,
 		Status:    "pending",
+		Strategy:  req.Strategy,
+		Selectors: storage.EncodeSelectors(req.Selectors),
 		CreatedAt: time.Now(),
 	}
 
@@ -81,15 +110,28 @@ func (s *Server) handleScrape(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to write database record"})
 		return
 	}
-	
+
 	s.pool.Submit(newJob)
 
 	c.JSON(http.StatusAccepted, gin.H{
-		"job_id": jobID,
-		"status": newJob.Status,
+		"job_id":   jobID,
+		"status":   newJob.Status,
+		"strategy": newJob.Strategy,
 	})
 }
 
+
+// handleGetJob godoc
+// @Summary      Get a scrape job
+// @Description  Retrieves the details of a specific scrape job.
+// @Tags         jobs
+// @Accept       json
+// @Produce      json
+// @Param        id path string true "Job ID"
+// @Success      202  {object}  map[string]string
+// @Failure      400  {object}  map[string]string
+// @Failure      500  {object}  map[string]string
+// @Router       /jobs/{id} [get]
 func (s *Server) handleGetJob(c *gin.Context) {
 	id := c.Param("id")
 	job, err := s.store.Get(id)

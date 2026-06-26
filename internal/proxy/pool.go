@@ -8,6 +8,8 @@ import (
 	"time"
 )
 
+// targeting Linkdlen broke the proxy pool....
+
 type Proxy struct {
 	URL      string
 	Success  int

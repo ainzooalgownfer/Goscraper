@@ -1,49 +1,28 @@
-basePath: /
 definitions:
   api.ScrapeRequest:
+    description: Scrape request body
     properties:
+      selectors:
+        additionalProperties:
+          type: string
+        type: object
+      strategy:
+        type: string
       url:
         type: string
     required:
     - url
     type: object
-  storage.Job:
-    properties:
-      created_at:
-        type: string
-      id:
-        type: string
-      status:
-        $ref: '#/definitions/storage.JobStatus'
-      url:
-        type: string
-    type: object
-  storage.JobStatus:
-    enum:
-    - pending
-    - processing
-    - completed
-    - failed
-    type: string
-    x-enum-varnames:
-    - StatusPending
-    - StatusProcessing
-    - StatusCompleted
-    - StatusFailed
-host: localhost:8080
 info:
   contact: {}
-  description: A production-inspired asynchronous web scraping service written in
-    Go.
-  title: GoScrape API
-  version: "1.0"
 paths:
   /jobs/{id}:
     get:
-      description: Retrieves current operational status and meta metrics for an existing
-        job item
+      consumes:
+      - application/json
+      description: Retrieves the details of a specific scrape job.
       parameters:
-      - description: Job Unique ID ID
+      - description: Job ID
         in: path
         name: id
         required: true
@@ -51,25 +30,35 @@ paths:
       produces:
       - application/json
       responses:
-        "200":
-          description: Success
+        "202":
+          description: Accepted
           schema:
-            $ref: '#/definitions/storage.Job'
-        "404":
-          description: Not Found
-          schema:
-            additionalProperties: true
+            additionalProperties:
+              type: string
             type: object
-      summary: Get scraping job status
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get a scrape job
       tags:
       - jobs
   /scrape:
     post:
       consumes:
       - application/json
-      description: Accepts a URL target and pushes a new job to the async worker pool
+      description: Submits a URL to the worker pool for scraping. Supports multiple
+        extraction strategies.
       parameters:
-      - description: Target URL configuration
+      - description: Scrape request
         in: body
         name: request
         required: true
@@ -81,14 +70,22 @@ paths:
         "202":
           description: Accepted
           schema:
-            additionalProperties: true
+            additionalProperties:
+              type: string
             type: object
         "400":
           description: Bad Request
           schema:
-            additionalProperties: true
+            additionalProperties:
+              type: string
             type: object
-      summary: Submit a scraping job
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Submit a scrape job
       tags:
       - jobs
 swagger: "2.0"
