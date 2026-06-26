@@ -1,4 +1,3 @@
-// cmd/api/main.go
 package main
 
 import (
@@ -35,11 +34,15 @@ func main() {
 		log.Fatalf("Failed to spin up database runtime context: %v", err)
 	}
 
-	sampleProxies := []string{
-		"http://proxy-balancer:8888",
+	proxies := []string{
+		"http://tor-node-1:8118",
+		"http://tor-node-2:8118",
+		"http://tor-node-3:8118",
+		"http://tor-node-4:8118",
+		"http://tor-node-5:8118",
 	}
 
-	proxyPool := proxy.NewProxyPool(sampleProxies)
+	proxyPool := proxy.NewProxyPool(proxies)
 	scraperEngine := scraper.NewDefaultScraper()
 
 	pool := scraper.NewWorkerPool(cfg.Scraper.Parallelism, 100, sqliteRepo, proxyPool, scraperEngine)

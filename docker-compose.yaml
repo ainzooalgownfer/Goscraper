@@ -6,16 +6,43 @@ services:
     volumes:
       - ./haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
     depends_on:
-      - tor-node
+      - tor-node-1
+      - tor-node-2
+      - tor-node-3
+      - tor-node-4
+      - tor-node-5
     restart: always
 
-  tor-node:
+  tor-node-1:
     image: dockage/tor-privoxy:latest
     restart: always
     volumes:
       - ./rotate.conf:/etc/torrc.d/rotate.conf:ro
 
- 
+  tor-node-2:
+    image: dockage/tor-privoxy:latest
+    restart: always
+    volumes:
+      - ./rotate.conf:/etc/torrc.d/rotate.conf:ro
+
+  tor-node-3:
+    image: dockage/tor-privoxy:latest
+    restart: always
+    volumes:
+      - ./rotate.conf:/etc/torrc.d/rotate.conf:ro
+
+  tor-node-4:
+    image: dockage/tor-privoxy:latest
+    restart: always
+    volumes:
+      - ./rotate.conf:/etc/torrc.d/rotate.conf:ro
+
+  tor-node-5:
+    image: dockage/tor-privoxy:latest
+    restart: always
+    volumes:
+      - ./rotate.conf:/etc/torrc.d/rotate.conf:ro
+
   api:
     build: .
     ports:
@@ -28,3 +55,4 @@ services:
     volumes:
       - ./configs:/root/configs
       - ./data:/root/data
+    restart: always

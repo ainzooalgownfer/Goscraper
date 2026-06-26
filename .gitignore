@@ -1,4 +1,3 @@
 data/
 
-go.mod
-go.sum
+.env

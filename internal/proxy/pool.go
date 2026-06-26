@@ -1,10 +1,11 @@
-// internal/proxy/pool.go
 package proxy
 
 import (
 	"errors"
 	"log"
+	"math/rand"
 	"sync"
+	"time"
 )
 
 type Proxy struct {
@@ -15,9 +16,9 @@ type Proxy struct {
 }
 
 type ProxyPool struct {
-	mu       sync.RWMutex
-	proxies  []*Proxy
-	currentIndex int
+	mu      sync.RWMutex
+	proxies []*Proxy
+	rng     *rand.Rand
 }
 
 func NewProxyPool(urls []string) *ProxyPool {
@@ -30,6 +31,7 @@ func NewProxyPool(urls []string) *ProxyPool {
 	}
 	return &ProxyPool{
 		proxies: pool,
+		rng:     rand.New(rand.NewSource(time.Now().UnixNano())),
 	}
 }
 
@@ -37,28 +39,43 @@ func (p *ProxyPool) GetNextProxy() (string, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	if len(p.proxies) == 0 {
-		return "", errors.New("no proxies available")
-	}
-
-	for i := 0 ; i < len(p.proxies); i++ {
-		idx := (p.currentIndex + i) % len(p.proxies)
-		target := p.proxies[idx]
-
-		if target.Active{
-			p.currentIndex = (idx + 1) % len(p.proxies)
-			return target.URL, nil
+	var active []*Proxy
+	for _, px := range p.proxies {
+		if px.Active {
+			active = append(active, px)
 		}
 	}
-	return "", errors.New("no active proxies available")
+
+	if len(active) == 0 {
+		return "", errors.New("no active proxies available")
+	}
+
+	chosen := active[p.rng.Intn(len(active))]
+    log.Printf("[ProxyPool] Selected proxy: %s (pool size: %d)", chosen.URL, len(active))
+	return chosen.URL, nil
 }
 
+func (p *ProxyPool) GetAll() ([]string, error) {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
 
-func (p *ProxyPool) RecordSuccess(url string) { 
+	var active []string
+	for _, px := range p.proxies {
+		if px.Active {
+			active = append(active, px.URL)
+		}
+	}
+	if len(active) == 0 {
+		return nil, errors.New("no active proxies")
+	}
+	return active, nil
+}
+
+func (p *ProxyPool) RecordSuccess(url string) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	for _, pr := range p.proxies{
+	for _, pr := range p.proxies {
 		if pr.URL == url {
 			pr.Success++
 			break
@@ -74,11 +91,10 @@ func (p *ProxyPool) RecordFailure(url string) {
 		if pr.URL == url {
 			pr.Failures++
 			log.Printf("Proxy failure recorded for %s (Total Failures: %d)", url, pr.Failures)
-			
-			
+
 			if pr.Failures >= 3 {
 				pr.Active = false
-				log.Printf("Proxy %s has been deactivated from active pool rotation", url)
+				log.Printf("Proxy %s deactivated from pool rotation", url)
 			}
 			break
 		}
