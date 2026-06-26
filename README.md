@@ -274,3 +274,17 @@ Users should:
 - Avoid collecting personal data
 - Implement rate limiting and responsible request patterns
 - Respect privacy regulations such as GDPR and CCPA
+
+##Future Implementation/fixes
+
+#Fixes
+
+- Targeting some websites (e.g: Linkdlen) will breake the proxy pool...
+- In a samll Time interval Workers can use the same IP repeatedly
+
+#Implementations
+
+- Dynamic scraping based on a strategy (e.g: Marketing websites, Wikis, etc)
+- Even more Dynamic based on user Input of HTML elements
+- Complex scraping
+  
