@@ -1,4 +1,3 @@
-// internal/storage/repository.go
 package storage
 
 import (
@@ -6,23 +5,28 @@ import (
 	"time"
 )
 
-
 type DBJob struct {
 	ID          string    `gorm:"primaryKey;type:varchar(50)" json:"id"`
 	URL         string    `gorm:"type:text;not null" json:"url"`
 	Status      string    `gorm:"type:varchar(20);default:'pending'" json:"status"`
 	ResultTitle string    `gorm:"type:text" json:"result_title,omitempty"`
 	Strategy    string    `gorm:"type:varchar(50);default:'title'" json:"strategy"`
-	Selectors   string    `gorm:"type:text" json:"selectors,omitempty"` 
+	Selectors   string    `gorm:"type:text" json:"selectors,omitempty"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
 }
-
 
 type JobRepository interface {
 	Create(job *DBJob) error
 	Get(id string) (*DBJob, error)
 	UpdateStatus(id string, status string, title string) error
+	List(page, limit int, status string) ([]*DBJob, int64, error)
+	Delete(id string) error
+	DeleteAll() (int64, error)
+	ExportAll() ([]*DBJob, error)
+	Retry(id string) (*DBJob, error)
+	ResetDB() error
+	Metrics() (map[string]interface{}, error)
 }
 
 func (j *DBJob) ParseSelectors() map[string]string {

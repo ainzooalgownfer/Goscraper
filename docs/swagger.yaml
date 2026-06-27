@@ -1,3 +1,4 @@
+basePath: /
 definitions:
   api.ScrapeRequest:
     description: Scrape request body
@@ -7,37 +8,48 @@ definitions:
           type: string
         type: object
       strategy:
+        example: custom
         type: string
       url:
+        example: https://books.toscrape.com
         type: string
     required:
     - url
     type: object
+  storage.DBJob:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: string
+      result_title:
+        type: string
+      selectors:
+        type: string
+      status:
+        type: string
+      strategy:
+        type: string
+      updated_at:
+        type: string
+      url:
+        type: string
+    type: object
+host: localhost:8080
 info:
   contact: {}
+  description: Distributed high-velocity Tor scraping API cluster
+  title: GoScraper API
+  version: "1.0"
 paths:
-  /jobs/{id}:
-    get:
-      consumes:
-      - application/json
-      description: Retrieves the details of a specific scrape job.
-      parameters:
-      - description: Job ID
-        in: path
-        name: id
-        required: true
-        type: string
+  /db/reset:
+    delete:
+      description: Drops and recreates all tables — full wipe including schema
       produces:
       - application/json
       responses:
-        "202":
-          description: Accepted
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "400":
-          description: Bad Request
+        "200":
+          description: OK
           schema:
             additionalProperties:
               type: string
@@ -48,15 +60,248 @@ paths:
             additionalProperties:
               type: string
             type: object
+      summary: Reset database
+      tags:
+      - system
+  /health:
+    get:
+      description: Returns API health status
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Health check
+      tags:
+      - system
+  /jobs:
+    delete:
+      description: Wipes all job records from the database without dropping the table
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Delete all jobs
+      tags:
+      - jobs
+    get:
+      description: Returns paginated list of scrape jobs with optional status filter
+      parameters:
+      - description: Page number (default 1)
+        in: query
+        name: page
+        type: integer
+      - description: Page size (default 20, max 100)
+        in: query
+        name: limit
+        type: integer
+      - description: 'Filter: pending, processing, completed, failed'
+        in: query
+        name: status
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: List all jobs
+      tags:
+      - jobs
+  /jobs/{id}:
+    delete:
+      description: Deletes a single job record by ID
+      parameters:
+      - description: Job ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Delete a job
+      tags:
+      - jobs
+    get:
+      description: Retrieves the details of a specific scrape job
+      parameters:
+      - description: Job ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/storage.DBJob'
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
       summary: Get a scrape job
       tags:
       - jobs
+  /jobs/{id}/retry:
+    post:
+      description: Requeues a failed job back into the worker pool
+      parameters:
+      - description: Job ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Retry a failed job
+      tags:
+      - jobs
+  /jobs/export:
+    get:
+      description: Returns all job records as a JSON array for download
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/storage.DBJob'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Export all jobs
+      tags:
+      - jobs
+  /metrics:
+    get:
+      description: Returns job counts and proxy pool summary
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: API metrics
+      tags:
+      - system
+  /pool/reset:
+    post:
+      description: Reactivates all deactivated proxies and clears failure counters
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Reset proxy pool
+      tags:
+      - pool
+  /pool/status:
+    get:
+      description: Returns health and stats for each proxy in the pool
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Proxy pool status
+      tags:
+      - pool
   /scrape:
     post:
       consumes:
       - application/json
-      description: Submits a URL to the worker pool for scraping. Supports multiple
-        extraction strategies.
+      description: Submits a URL to the worker pool. Supports title, news, ecommerce,
+        custom strategies.
       parameters:
       - description: Scrape request
         in: body

@@ -49,7 +49,6 @@ func (w *Worker) process(job *storage.DBJob) {
 		return
 	}
 
-	
 	strategy := ResolveStrategy(job.Strategy, job.ParseSelectors())
 
 	result, outboundIP, err := w.scraper.Scrape(context.Background(), job.URL, px, strategy)
@@ -69,12 +68,21 @@ func (w *Worker) handleScrapeError(jobID string, px string, err error) {
 	msg := err.Error()
 	switch {
 	case strings.Contains(msg, "403") || strings.Contains(msg, "Forbidden"):
-		log.Printf("[Worker %d] BLOCKED (403) on job %s — anti-bot firewall", w.id, jobID)
+		log.Printf("[Worker %d] BLOCKED (403) on job %s — site block, proxy stays active", w.id, jobID)
+		w.proxyPool.RecordFailure(px) // soft — site blocked us, not a proxy issue
+
 	case strings.Contains(msg, "429") || strings.Contains(msg, "Too Many Requests"):
 		log.Printf("[Worker %d] THROTTLED (429) on job %s — rate limited", w.id, jobID)
+		w.proxyPool.RecordFailure(px) // soft — rate limit, not a proxy issue
+
+	case strings.Contains(msg, "timeout") || strings.Contains(msg, "deadline exceeded") ||
+		strings.Contains(msg, "EOF") || strings.Contains(msg, "connection refused"):
+		log.Printf("[Worker %d] CONNECTIVITY FAILURE on job %s: %v", w.id, jobID, err)
+		w.proxyPool.RecordHardFailure(px)
+
 	default:
 		log.Printf("[Worker %d] Scrape failed for job %s: %v", w.id, jobID, err)
+		w.proxyPool.RecordFailure(px) // unknown — treat as soft
 	}
 	w.store.UpdateStatus(jobID, "failed", "")
-	w.proxyPool.RecordFailure(px)
 }

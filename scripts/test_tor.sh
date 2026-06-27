@@ -17,7 +17,7 @@ SEEN_IPS=()
 UNIQUE_IPS=()
 
 for i in $(seq 1 $NUM_NODES); do
-  CONTAINER="scraper-tor-node-$i-1"
+  CONTAINER="goscraper-tor-node-$i-1"
 
   RAW=$(docker exec \
     -e http_proxy=http://127.0.0.1:8118 \

@@ -1,3 +1,8 @@
+// @title           GoScraper API
+// @version         1.0
+// @description     Distributed high-velocity Tor scraping API cluster
+// @host            localhost:8080
+// @BasePath        /
 package main
 
 import (
@@ -49,7 +54,7 @@ func main() {
 	pool.Start(ctx)
 
 	log.Printf("Starting GoScrape API server on port %s...", cfg.Server.Port)
-	server := api.NewServer(cfg, pool, sqliteRepo)
+	server := api.NewServer(cfg, pool, sqliteRepo, proxyPool)
 
 	if err := server.Start(); err != nil {
 		log.Fatalf("Failed to run HTTP server: %v", err)

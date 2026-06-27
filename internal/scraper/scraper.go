@@ -52,7 +52,7 @@ func (ds *DefaultScraper) Scrape(ctx context.Context, targetURL string, proxyURL
 	}
 
 	c.WithTransport(t)
-	c.SetRequestTimeout(25 * time.Second)
+	c.SetRequestTimeout(60 * time.Second)
 
 	// IP detection
 	ipChecker := c.Clone()
@@ -76,7 +76,7 @@ func (ds *DefaultScraper) Scrape(ctx context.Context, targetURL string, proxyURL
 		Parallelism: 2,
 	})
 
-	// inject strategy 
+	// inject strategy
 	if strategy != nil {
 		strategy(c, &result)
 	} else {
