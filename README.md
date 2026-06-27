@@ -1,4 +1,4 @@
-````markdown
+
 # Distributed High-Velocity Tor Scraping API Cluster
 
 A high-performance, fault-tolerant asynchronous web scraping engine built in Go. This system leverages a multi-worker concurrency pool, a native SQLite job repository, and a distributed network proxy matrix using **HAProxy** and scaled **Tor/Privoxy** instances to rotate exit nodes dynamically on every request.
@@ -373,4 +373,3 @@ Users should:
 - Avoid collecting personal data
 - Implement rate limiting and responsible request patterns
 - Respect privacy regulations such as GDPR and CCPA
-````
