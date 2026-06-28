@@ -54,7 +54,7 @@ func main() {
 	pool.Start(ctx)
 
 	log.Printf("Starting GoScrape API server on port %s...", cfg.Server.Port)
-	server := api.NewServer(cfg, pool, sqliteRepo, proxyPool)
+	server := api.NewServer(cfg, pool, sqliteRepo, proxyPool, scraperEngine)
 
 	if err := server.Start(); err != nil {
 		log.Fatalf("Failed to run HTTP server: %v", err)

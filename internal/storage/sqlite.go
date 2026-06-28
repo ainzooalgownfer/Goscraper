@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/gin-gonic/gin"
 	"github.com/glebarez/sqlite"
 	"gorm.io/gorm"
 )
@@ -145,4 +146,47 @@ func (r *SQLiteRepository) Metrics() (map[string]interface{}, error) {
 		"completed":  completed,
 		"failed":     failed,
 	}, nil
+}
+
+func (r *SQLiteRepository) Stats() (map[string]interface{}, error) {
+	type StrategyCount struct {
+		Strategy string
+		Count    int64
+	}
+
+	var strategyCounts []StrategyCount
+	r.db.Model(&DBJob{}).
+		Select("strategy, count(*) as count").
+		Group("strategy").
+		Scan(&strategyCounts)
+
+	var completedByStrategy []StrategyCount
+	r.db.Model(&DBJob{}).
+		Select("strategy, count(*) as count").
+		Where("status = ?", "completed").
+		Group("strategy").
+		Scan(&completedByStrategy)
+
+	completedMap := map[string]int64{}
+	for _, c := range completedByStrategy {
+		completedMap[c.Strategy] = c.Count
+	}
+
+	breakdown := []gin.H{}
+	for _, s := range strategyCounts {
+		total := s.Count
+		completed := completedMap[s.Strategy]
+		rate := 0.0
+		if total > 0 {
+			rate = float64(completed) / float64(total) * 100
+		}
+		breakdown = append(breakdown, gin.H{
+			"strategy":     s.Strategy,
+			"total":        total,
+			"completed":    completed,
+			"success_rate": fmt.Sprintf("%.1f%%", rate),
+		})
+	}
+
+	return map[string]interface{}{"by_strategy": breakdown}, nil
 }

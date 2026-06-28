@@ -17,31 +17,31 @@ services:
     image: dockage/tor-privoxy:latest
     restart: always
     volumes:
-      - ./rotate.conf:/etc/torrc.d/rotate.conf:ro
+      - ./torrc:/etc/tor/torrc:ro
 
   tor-node-2:
     image: dockage/tor-privoxy:latest
     restart: always
     volumes:
-      - ./rotate.conf:/etc/torrc.d/rotate.conf:ro
+      - ./torrc:/etc/tor/torrc:ro
 
   tor-node-3:
     image: dockage/tor-privoxy:latest
     restart: always
     volumes:
-      - ./rotate.conf:/etc/torrc.d/rotate.conf:ro
+      - ./torrc:/etc/tor/torrc:ro
 
   tor-node-4:
     image: dockage/tor-privoxy:latest
     restart: always
     volumes:
-      - ./rotate.conf:/etc/torrc.d/rotate.conf:ro
+      - ./torrc:/etc/tor/torrc:ro
 
   tor-node-5:
     image: dockage/tor-privoxy:latest
     restart: always
     volumes:
-      - ./rotate.conf:/etc/torrc.d/rotate.conf:ro
+      - ./torrc:/etc/tor/torrc:ro
 
   api:
     build: .
@@ -49,6 +49,8 @@ services:
       - "8080:8080"
     depends_on:
       - proxy-balancer
+    env_file:
+      - .env
     environment:
       - SERVER_PORT=8080
       - PROXY_ENABLED=true

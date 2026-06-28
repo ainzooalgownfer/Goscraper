@@ -27,6 +27,7 @@ type JobRepository interface {
 	Retry(id string) (*DBJob, error)
 	ResetDB() error
 	Metrics() (map[string]interface{}, error)
+	Stats() (map[string]interface{}, error)
 }
 
 func (j *DBJob) ParseSelectors() map[string]string {

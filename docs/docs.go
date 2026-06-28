@@ -17,7 +17,7 @@ const docTemplate = `{
     "paths": {
         "/db/reset": {
             "delete": {
-                "description": "Drops and recreates all tables — full wipe including schema",
+                "description": "Drops and recreates all tables",
                 "produces": [
                     "application/json"
                 ],
@@ -65,6 +65,34 @@ const docTemplate = `{
                             "additionalProperties": {
                                 "type": "string"
                             }
+                        }
+                    }
+                }
+            }
+        },
+        "/health/deep": {
+            "get": {
+                "description": "Checks DB connection, proxy pool, and worker queue depth",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "system"
+                ],
+                "summary": "Deep health check",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
                         }
                     }
                 }
@@ -120,7 +148,7 @@ const docTemplate = `{
                 }
             },
             "delete": {
-                "description": "Wipes all job records from the database without dropping the table",
+                "description": "Wipes all job records without dropping the table",
                 "produces": [
                     "application/json"
                 ],
@@ -166,6 +194,36 @@ const docTemplate = `{
                             "items": {
                                 "$ref": "#/definitions/storage.DBJob"
                             }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/jobs/stats": {
+            "get": {
+                "description": "Returns breakdown by strategy and success rates",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "jobs"
+                ],
+                "summary": "Job statistics",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
                         }
                     },
                     "500": {
@@ -312,15 +370,6 @@ const docTemplate = `{
                                 "type": "string"
                             }
                         }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
                     }
                 }
             }
@@ -355,9 +404,57 @@ const docTemplate = `{
                 }
             }
         },
+        "/pool/node": {
+            "get": {
+                "description": "Checks what exit IP a specific Tor node is currently using",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "pool"
+                ],
+                "summary": "Get current exit IP of a node",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Proxy URL e.g. http://tor-node-1:8118",
+                        "name": "url",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/pool/reset": {
             "post": {
-                "description": "Reactivates all deactivated proxies and clears failure counters",
+                "description": "Reactivates all proxies and clears failure counters",
                 "produces": [
                     "application/json"
                 ],
@@ -373,6 +470,27 @@ const docTemplate = `{
                             "additionalProperties": {
                                 "type": "string"
                             }
+                        }
+                    }
+                }
+            }
+        },
+        "/pool/rotate": {
+            "post": {
+                "description": "Sends NEWNYM signal to all active Tor nodes forcing fresh exit IPs",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "pool"
+                ],
+                "summary": "Rotate all Tor circuits",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
                         }
                     }
                 }
@@ -401,7 +519,7 @@ const docTemplate = `{
         },
         "/scrape": {
             "post": {
-                "description": "Submits a URL to the worker pool. Supports title, news, ecommerce, custom strategies.",
+                "description": "Submits a URL to the worker pool asynchronously",
                 "consumes": [
                     "application/json"
                 ],
@@ -453,11 +571,174 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/scrape/bulk": {
+            "post": {
+                "description": "Submits multiple URLs in one request, each with its own strategy",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "jobs"
+                ],
+                "summary": "Submit multiple scrape jobs",
+                "parameters": [
+                    {
+                        "description": "Bulk scrape request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api.BulkScrapeRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "Accepted",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/scrape/test": {
+            "post": {
+                "description": "Scrapes a URL immediately and returns the result without saving to DB. Useful for testing selectors.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "jobs"
+                ],
+                "summary": "Synchronous test scrape",
+                "parameters": [
+                    {
+                        "description": "Scrape request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api.ScrapeRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/strategies": {
+            "get": {
+                "description": "Returns all available scraping strategies and their descriptions",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "jobs"
+                ],
+                "summary": "List available strategies",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/version": {
+            "get": {
+                "description": "Returns Go version and build time",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "system"
+                ],
+                "summary": "Version info",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
+        "api.BulkScrapeRequest": {
+            "type": "object",
+            "required": [
+                "jobs"
+            ],
+            "properties": {
+                "jobs": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/api.ScrapeRequest"
+                    }
+                }
+            }
+        },
         "api.ScrapeRequest": {
-            "description": "Scrape request body",
             "type": "object",
             "required": [
                 "url"

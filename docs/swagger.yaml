@@ -1,7 +1,15 @@
 basePath: /
 definitions:
+  api.BulkScrapeRequest:
+    properties:
+      jobs:
+        items:
+          $ref: '#/definitions/api.ScrapeRequest'
+        type: array
+    required:
+    - jobs
+    type: object
   api.ScrapeRequest:
-    description: Scrape request body
     properties:
       selectors:
         additionalProperties:
@@ -44,7 +52,7 @@ info:
 paths:
   /db/reset:
     delete:
-      description: Drops and recreates all tables — full wipe including schema
+      description: Drops and recreates all tables
       produces:
       - application/json
       responses:
@@ -78,9 +86,28 @@ paths:
       summary: Health check
       tags:
       - system
+  /health/deep:
+    get:
+      description: Checks DB connection, proxy pool, and worker queue depth
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Deep health check
+      tags:
+      - system
   /jobs:
     delete:
-      description: Wipes all job records from the database without dropping the table
+      description: Wipes all job records without dropping the table
       produces:
       - application/json
       responses:
@@ -217,12 +244,6 @@ paths:
             additionalProperties:
               type: string
             type: object
-        "500":
-          description: Internal Server Error
-          schema:
-            additionalProperties:
-              type: string
-            type: object
       summary: Retry a failed job
       tags:
       - jobs
@@ -247,6 +268,26 @@ paths:
       summary: Export all jobs
       tags:
       - jobs
+  /jobs/stats:
+    get:
+      description: Returns breakdown by strategy and success rates
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Job statistics
+      tags:
+      - jobs
   /metrics:
     get:
       description: Returns job counts and proxy pool summary
@@ -267,9 +308,41 @@ paths:
       summary: API metrics
       tags:
       - system
+  /pool/node:
+    get:
+      description: Checks what exit IP a specific Tor node is currently using
+      parameters:
+      - description: Proxy URL e.g. http://tor-node-1:8118
+        in: query
+        name: url
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get current exit IP of a node
+      tags:
+      - pool
   /pool/reset:
     post:
-      description: Reactivates all deactivated proxies and clears failure counters
+      description: Reactivates all proxies and clears failure counters
       produces:
       - application/json
       responses:
@@ -280,6 +353,21 @@ paths:
               type: string
             type: object
       summary: Reset proxy pool
+      tags:
+      - pool
+  /pool/rotate:
+    post:
+      description: Sends NEWNYM signal to all active Tor nodes forcing fresh exit
+        IPs
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Rotate all Tor circuits
       tags:
       - pool
   /pool/status:
@@ -300,8 +388,7 @@ paths:
     post:
       consumes:
       - application/json
-      description: Submits a URL to the worker pool. Supports title, news, ecommerce,
-        custom strategies.
+      description: Submits a URL to the worker pool asynchronously
       parameters:
       - description: Scrape request
         in: body
@@ -333,4 +420,104 @@ paths:
       summary: Submit a scrape job
       tags:
       - jobs
+  /scrape/bulk:
+    post:
+      consumes:
+      - application/json
+      description: Submits multiple URLs in one request, each with its own strategy
+      parameters:
+      - description: Bulk scrape request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/api.BulkScrapeRequest'
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Submit multiple scrape jobs
+      tags:
+      - jobs
+  /scrape/test:
+    post:
+      consumes:
+      - application/json
+      description: Scrapes a URL immediately and returns the result without saving
+        to DB. Useful for testing selectors.
+      parameters:
+      - description: Scrape request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/api.ScrapeRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Synchronous test scrape
+      tags:
+      - jobs
+  /strategies:
+    get:
+      description: Returns all available scraping strategies and their descriptions
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: List available strategies
+      tags:
+      - jobs
+  /version:
+    get:
+      description: Returns Go version and build time
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Version info
+      tags:
+      - system
 swagger: "2.0"
