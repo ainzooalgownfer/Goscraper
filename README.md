@@ -1,15 +1,13 @@
 # Distributed High-Velocity Tor Scraping API Cluster
 
-A high-performance, fault-tolerant asynchronous web scraping engine built in Go. This system leverages a multi-worker concurrency pool, a native SQLite job repository, and a distributed network proxy matrix using **HAProxy** and scaled **Tor/Privoxy** instances to rotate exit nodes dynamically on every request.
+A high-performance, fault-tolerant asynchronous web scraping engine built in Go. This system leverages a multi-worker concurrency pool, a native SQLite job repository, a distributed network proxy matrix using **HAProxy** and scaled **Tor/Privoxy** instances to rotate exit nodes dynamically on every request, and a built-in web dashboard served directly from the API.
 
 ---
 
 ## System Architecture
 
-The project separates scraping logic from raw network adapters to provide a scalable scraping infrastructure.
-
 1. **Go API Service (Gin Engine)**  
-   Accepts scraping requests asynchronously, generates tracking IDs, and submits jobs to the internal worker pool.
+   Accepts scraping requests asynchronously, generates tracking IDs, submits jobs to the internal worker pool, and serves the web dashboard UI.
 
 2. **Worker Pool Engine**  
    Runs multiple concurrent Go routines that process scraping jobs from an execution queue. Each worker draws randomly from the proxy pool on every job, ensuring no two workers are pinned to the same exit node.
@@ -31,6 +29,9 @@ The project separates scraping logic from raw network adapters to provide a scal
    http://tor-node-5:8118
 ```
 
+5. **Web Dashboard**  
+   A dark-themed HTMX dashboard served at `/ui`. No separate frontend build step — templates are rendered by the Gin server and auto-refresh every 5 seconds via HTMX polling.
+
 ---
 
 ## Project Directory Structure
@@ -41,17 +42,27 @@ The project separates scraping logic from raw network adapters to provide a scal
 │       └── main.go                  # Application entry point, proxy pool init
 ├── internal/
 │   ├── api/
-│   │   └── server.go                # Gin server & HTTP handlers
+│   │   ├── server.go                # Gin server & REST API handlers
+│   │   └── ui.go                    # Web dashboard handlers, partials, actions
 │   ├── proxy/
-│   │   └── pool.go                  # Proxy pool, random selection, health tracking
+│   │   └── pool.go                  # Proxy pool, random selection, health tracking, NEWNYM rotation
 │   ├── scraper/
 │   │   ├── scraper.go               # Colly engine & HTTP transport
 │   │   ├── strategy.go              # Scraping strategies (title, news, ecommerce, custom)
-│   │   ├── worker.go                # Single worker — job processing, error handling
+│   │   ├── worker.go                # Single worker — job processing, error classification
 │   │   └── worker_pool.go           # Worker pool orchestration
 │   └── storage/
 │       ├── repository.go            # Job model, interface, helpers
 │       └── sqlite.go                # SQLite persistence layer
+├── web/
+│   ├── templates/
+│   │   ├── base.html                # Sidebar layout
+│   │   ├── dashboard.html           # Metrics, pool status, recent jobs
+│   │   ├── submit.html              # Async job form + sync test scraper
+│   │   ├── jobs.html                # Job table with filters, retry, delete
+│   │   └── pool.html                # Per-node health, rotate, reset
+│   └── static/
+│       └── app.css                  # Dark theme styles
 ├── scripts/
 │   ├── gen_torrc.sh                 # Generates torrc from template using .env
 │   ├── test_tor.sh                  # Tor exit IP isolation test
@@ -117,7 +128,22 @@ docker-compose down && docker-compose up --build
 
 ---
 
-## API Endpoints
+## Web Dashboard
+
+Accessible at `http://localhost:8080/ui` once the stack is running.
+
+| Page | URL | Description |
+|------|-----|-------------|
+| Dashboard | `/ui` | Live metrics, pool health, recent jobs — auto-refreshes every 5s |
+| Submit Job | `/ui/submit` | Async job form + synchronous test scraper with CSS selector builder |
+| Jobs | `/ui/jobs` | Full job table with status filter, retry, and delete per row |
+| Proxy Pool | `/ui/pool` | Per-node health stats, circuit rotation, pool reset |
+
+The dashboard is built with HTMX and served directly from the Gin server — no separate frontend service, no npm, no build step.
+
+---
+
+## REST API Endpoints
 
 | Method   | Endpoint              | Description                                           |
 |----------|-----------------------|-------------------------------------------------------|
@@ -210,7 +236,7 @@ POST /scrape/bulk
 
 ### Synchronous test scrape
 
-Returns the result immediately without saving to DB. Useful for testing selectors in Swagger before committing to a full job run.
+Returns the result immediately without saving to DB. Useful for testing selectors before committing to a full job run.
 
 ```json
 POST /scrape/test
@@ -244,7 +270,7 @@ Template for the Tor config file. Rendered into `torrc` by `gen_torrc.sh`. Conta
 - `MaxCircuitDirtiness 10` — retires circuits after 10 seconds
 - `EnforceDistinctSubnets 1` — prevents Tor from routing two hops through the same `/16` subnet
 
-> `ControlPort 0.0.0.0:9052` is only exposed within the Docker network — port 9052 is never published externally in `docker-compose.yml`. Do not add it to the `ports` block.
+> `ControlPort 0.0.0.0:9052` is only exposed within the Docker network — port 9052 is never published externally. Do not add it to the `ports` block in `docker-compose.yml`.
 
 ### `haproxy.cfg`
 
@@ -337,7 +363,7 @@ docker-compose logs api | grep "Target sees IP"
 ## Proxy Pool Behavior
 
 - Workers select proxies **randomly** on every job — no static worker-to-proxy binding
-- **Soft failures** (403, 429, site blocks) increment a failure counter but never deactivate the proxy
+- **Soft failures** (403, 429, site blocks) increment a failure counter but never deactivate the proxy — a site block is not a proxy failure
 - **Hard failures** (EOF, connection refused) increment a hard failure counter; after 5 hard failures the proxy enters a 60 second cooldown
 - Proxies **auto-recover** after the cooldown period without requiring a restart
 - `POST /pool/rotate` sends NEWNYM to all Tor nodes via the control port, forcing fresh exit IPs immediately
@@ -361,7 +387,7 @@ docker-compose restart tor-node-1
 
 ## Circuit Rotation Failing
 
-If `/pool/rotate` returns `control port unreachable`:
+If `POST /pool/rotate` returns `control port unreachable`:
 
 ```bash
 # verify control port is listening on 0.0.0.0
@@ -404,6 +430,19 @@ Container names depend on the folder name. Scripts auto-detect the prefix. Check
 docker ps --format "{{.Names}}" | grep tor
 ```
 
+## Dashboard Templates Not Found
+
+If the API panics with `pattern matches no files: web/templates/*.html`:
+
+```bash
+# verify web/ folder is in the repo
+ls web/templates/
+
+# verify Dockerfile copies it
+grep "web" Dockerfile
+# should show: COPY --from=builder /app/web ./web
+```
+
 ---
 
 # Security Notes
@@ -420,6 +459,9 @@ docker ps --format "{{.Names}}" | grep tor
 ## Backend
 - Go, Gin, Colly, SQLite (via GORM)
 
+## Frontend
+- HTMX, HTML templates (`html/template`), custom CSS — no npm, no build step
+
 ## Infrastructure
 - Docker, Docker Compose, HAProxy, Tor, Privoxy
 
@@ -427,9 +469,10 @@ docker ps --format "{{.Names}}" | grep tor
 - Worker pools with randomized proxy selection
 - Asynchronous job queue
 - Pluggable scraping strategy pattern
-- Per-node Tor circuit isolation with on-demand NEWNYM rotation
+- Per-node Tor circuit isolation with on-demand NEWNYM rotation via control port
 - Soft vs hard proxy failure classification
 - Auto-recovering proxy cooldown
+- Server-side rendered dashboard with HTMX live updates
 - Repository pattern
 - Distributed services
 
@@ -449,7 +492,6 @@ docker ps --format "{{.Names}}" | grep tor
 - JavaScript rendering support via headless browser integration
 - Rate limiting per domain to avoid triggering anti-bot thresholds
 - Webhook callbacks when jobs complete
-- Dashboard UI for real-time job and pool monitoring
 
 ---
 
