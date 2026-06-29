@@ -1,0 +1,115 @@
+{{define "title"}}Submit Job{{end}}
+
+{{define "content"}}
+<h1 class="page-title">Submit Scrape Job</h1>
+
+<div class="grid grid-2">
+    <div class="card">
+        <div class="card-title">Async Job</div>
+        <p class="text-muted mb-16">Job is queued and processed by the worker pool.</p>
+        <div id="submit-result"></div>
+        <form hx-post="/ui/actions/scrape"
+              hx-target="#submit-result"
+              hx-swap="innerHTML">
+            <div class="form-group">
+                <label>Target URL</label>
+                <input type="url" name="url" placeholder="http://quotes.toscrape.com" required>
+            </div>
+            <div class="form-group">
+                <label>Strategy</label>
+                <select name="strategy" onchange="toggleSelectors(this.value)">
+                    <option value="title">title — page title + meta description</option>
+                    <option value="news">news — headline + article body</option>
+                    <option value="ecommerce">ecommerce — product name, price, availability</option>
+                    <option value="custom">custom — define your own CSS selectors</option>
+                </select>
+            </div>
+            <div id="selectors-section" style="display:none">
+                <div class="form-group">
+                    <label>CSS Selectors</label>
+                    <div id="selector-rows">
+                        <div class="selector-row">
+                            <input type="text" name="sel_key[]"   placeholder="field name (e.g. quote)">
+                            <input type="text" name="sel_value[]" placeholder="CSS selector (e.g. .text)">
+                            <button type="button" class="remove-btn" onclick="removeRow(this)">×</button>
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-ghost btn-sm mt-16" onclick="addRow()">+ Add selector</button>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary">
+                <span> Submit Job</span>
+                <div class="spinner htmx-indicator"></div>
+            </button>
+        </form>
+    </div>
+
+    <div class="card">
+        <div class="card-title">Synchronous Test</div>
+        <p class="text-muted mb-16">Scrapes immediately and returns result. Not saved to DB.</p>
+        <div id="test-result"></div>
+        <form hx-post="/ui/actions/scrape-test"
+              hx-target="#test-result"
+              hx-swap="innerHTML">
+            <div class="form-group">
+                <label>Target URL</label>
+                <input type="url" name="url" placeholder="http://quotes.toscrape.com" required>
+            </div>
+            <div class="form-group">
+                <label>Strategy</label>
+                <select name="strategy" onchange="toggleTestSelectors(this.value)">
+                    <option value="title">title</option>
+                    <option value="news">news</option>
+                    <option value="ecommerce">ecommerce</option>
+                    <option value="custom">custom</option>
+                </select>
+            </div>
+            <div id="test-selectors-section" style="display:none">
+                <div class="form-group">
+                    <label>CSS Selectors</label>
+                    <div id="test-selector-rows">
+                        <div class="selector-row">
+                            <input type="text" name="test_sel_key[]"   placeholder="field name">
+                            <input type="text" name="test_sel_value[]" placeholder="CSS selector">
+                            <button type="button" class="remove-btn" onclick="removeRow(this)">×</button>
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-ghost btn-sm mt-16" onclick="addTestRow()">+ Add selector</button>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-success">
+                <span> Test Now</span>
+                <div class="spinner htmx-indicator"></div>
+            </button>
+        </form>
+    </div>
+</div>
+
+<script>
+function toggleSelectors(val) {
+    document.getElementById('selectors-section').style.display = val === 'custom' ? 'block' : 'none';
+}
+function toggleTestSelectors(val) {
+    document.getElementById('test-selectors-section').style.display = val === 'custom' ? 'block' : 'none';
+}
+function addRow() {
+    const c = document.getElementById('selector-rows');
+    const r = document.createElement('div');
+    r.className = 'selector-row';
+    r.innerHTML = `<input type="text" name="sel_key[]" placeholder="field name">
+                   <input type="text" name="sel_value[]" placeholder="CSS selector">
+                   <button type="button" class="remove-btn" onclick="removeRow(this)">×</button>`;
+    c.appendChild(r);
+}
+function addTestRow() {
+    const c = document.getElementById('test-selector-rows');
+    const r = document.createElement('div');
+    r.className = 'selector-row';
+    r.innerHTML = `<input type="text" name="test_sel_key[]" placeholder="field name">
+                   <input type="text" name="test_sel_value[]" placeholder="CSS selector">
+                   <button type="button" class="remove-btn" onclick="removeRow(this)">×</button>`;
+    c.appendChild(r);
+}
+function removeRow(btn) { btn.closest('.selector-row').remove(); }
+</script>
+{{end}}

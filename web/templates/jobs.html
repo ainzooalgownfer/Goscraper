@@ -1,0 +1,34 @@
+{{define "title"}}Jobs{{end}}
+
+{{define "content"}}
+<div class="flex items-center justify-between mb-24">
+    <h1 class="page-title" style="margin-bottom:0">Jobs</h1>
+    <div class="flex gap-8">
+        <button class="btn btn-danger btn-sm"
+                hx-delete="/ui/actions/jobs-all"
+                hx-confirm="Delete all job records?"
+                hx-target="#jobs-table"
+                hx-swap="innerHTML">🗑 Delete All</button>
+        <a href="/jobs/export" class="btn btn-ghost btn-sm">⬇ Export JSON</a>
+    </div>
+</div>
+
+<div class="card mb-16">
+    <div class="flex gap-8 items-center">
+        <label class="text-muted">Filter:</label>
+        <button class="btn btn-ghost btn-sm" hx-get="/ui/partials/jobs-table?status="         hx-target="#jobs-table">All</button>
+        <button class="btn btn-ghost btn-sm" hx-get="/ui/partials/jobs-table?status=pending"    hx-target="#jobs-table">Pending</button>
+        <button class="btn btn-ghost btn-sm" hx-get="/ui/partials/jobs-table?status=processing" hx-target="#jobs-table">Processing</button>
+        <button class="btn btn-ghost btn-sm" hx-get="/ui/partials/jobs-table?status=completed"  hx-target="#jobs-table">Completed</button>
+        <button class="btn btn-ghost btn-sm" hx-get="/ui/partials/jobs-table?status=failed"     hx-target="#jobs-table">Failed</button>
+    </div>
+</div>
+
+<div class="card">
+    <div id="jobs-table"
+         hx-get="/ui/partials/jobs-table"
+         hx-trigger="load, every 5s">
+        <div class="text-muted">Loading...</div>
+    </div>
+</div>
+{{end}}

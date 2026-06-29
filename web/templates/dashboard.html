@@ -1,0 +1,40 @@
+{{define "title"}}Dashboard{{end}}
+
+{{define "content"}}
+<div class="flex items-center justify-between mb-24">
+    <h1 class="page-title" style="margin-bottom:0">Dashboard</h1>
+    <div class="flex gap-8">
+        <span class="text-muted" id="last-updated"></span>
+        <div class="spinner htmx-indicator" id="refresh-spinner"></div>
+    </div>
+</div>
+
+<div class="grid grid-4 mb-16"
+     hx-get="/ui/partials/metrics"
+     hx-trigger="load, every 5s"
+     hx-indicator="#refresh-spinner">
+    <div class="card"><div class="metric-value">—</div><div class="metric-label">Loading...</div></div>
+</div>
+
+<div class="grid grid-2 mb-16">
+    <div class="card"
+         hx-get="/ui/partials/pool-mini"
+         hx-trigger="load, every 5s">
+        <div class="card-title">Proxy Pool</div>
+        <div>Loading...</div>
+    </div>
+    <div class="card"
+         hx-get="/ui/partials/recent-jobs"
+         hx-trigger="load, every 5s">
+        <div class="card-title">Recent Jobs</div>
+        <div>Loading...</div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('htmx:afterRequest', function() {
+    document.getElementById('last-updated').textContent =
+        'Updated ' + new Date().toLocaleTimeString();
+});
+</script>
+{{end}}

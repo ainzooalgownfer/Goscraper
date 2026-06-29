@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GoScraper — {{block "title" .}}{{end}}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/app.css">
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+</head>
+<body>
+    <nav class="sidebar">
+        <div class="sidebar-logo">⬡ GoScraper</div>
+        <a href="/ui"        class="nav-link {{if eq .Page "dashboard"}}active{{end}}">Dashboard</a>
+        <a href="/ui/submit" class="nav-link {{if eq .Page "submit"}}active{{end}}"> Submit Job</a>
+        <a href="/ui/jobs"   class="nav-link {{if eq .Page "jobs"}}active{{end}}"> Jobs</a>
+        <a href="/ui/pool"   class="nav-link {{if eq .Page "pool"}}active{{end}}"> Proxy Pool</a>
+        <a href="/swagger/index.html" class="nav-link" target="_blank"> Swagger</a>
+    </nav>
+    <main class="main">
+        {{block "content" .}}{{end}}
+    </main>
+</body>
+</html>
