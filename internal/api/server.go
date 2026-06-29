@@ -50,7 +50,9 @@ func NewServer(cfg *config.Config, pool *scraper.WorkerPool, repo storage.JobRep
 		proxyPool: proxyPool,
 		scraper:   scraperEngine,
 	}
+	s.loadTemplates()
 	s.setupRoutes()
+	s.setupUIRoutes()
 	return s
 }
 

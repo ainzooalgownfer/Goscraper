@@ -12,11 +12,11 @@
 <body>
     <nav class="sidebar">
         <div class="sidebar-logo">⬡ GoScraper</div>
-        <a href="/ui"        class="nav-link {{if eq .Page "dashboard"}}active{{end}}">Dashboard</a>
+        <a href="/ui"        class="nav-link {{if eq .Page "dashboard"}}active{{end}}"> Dashboard</a>
         <a href="/ui/submit" class="nav-link {{if eq .Page "submit"}}active{{end}}"> Submit Job</a>
         <a href="/ui/jobs"   class="nav-link {{if eq .Page "jobs"}}active{{end}}"> Jobs</a>
         <a href="/ui/pool"   class="nav-link {{if eq .Page "pool"}}active{{end}}"> Proxy Pool</a>
-        <a href="/swagger/index.html" class="nav-link" target="_blank"> Swagger</a>
+        <a href="/swagger/index.html" class="nav-link" target="_blank">Swagger</a>
     </nav>
     <main class="main">
         {{block "content" .}}{{end}}
