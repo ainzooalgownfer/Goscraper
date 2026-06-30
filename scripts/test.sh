@@ -10,7 +10,7 @@ BOLD='\033[1m'
 NC='\033[0m'
 
 API_URL="http://localhost:8080"
-MAX_WAIT=180
+MAX_WAIT=250
 declare -a JOBS=()
 
 declare -A TARGET_STRATEGIES
